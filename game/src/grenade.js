@@ -1,18 +1,19 @@
 // One smoke grenade: thrown on an arc, pops on landing, and blocks bot
-// sight (and the player's) for 8 s. A translucent ember sphere marks the
-// cloud, and the segment test below is what bots call through hasLOS.
+// sight (and the player's) for 8 seconds. A translucent ember sphere
+// marks the cloud; the segment test below is what bot sight calls
+// through clearSight.
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
 
-const GRAVITY = 12;
+const THROW_GRAVITY = 12;
 const SMOKE_SECONDS = 8;
 const SMOKE_RADIUS = 3.2;
 export function createGrenades(scene) {
-  const mesh = new THREE.Mesh(
+  const cloud = new THREE.Mesh(
     new THREE.SphereGeometry(SMOKE_RADIUS, 20, 14),
     new THREE.MeshBasicMaterial({ color: new THREE.Color(PALETTE.muted), transparent: true, opacity: 0.32, depthWrite: false }),
   );
-  mesh.visible = false; scene.add(mesh);
+  cloud.visible = false; scene.add(cloud);
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.accent) }));
   ball.visible = false; scene.add(ball);
   const state = { flying: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), smokeAt: new THREE.Vector3(), smokeLeft: 0 };
@@ -28,20 +29,20 @@ export function createGrenades(scene) {
     },
     step(dt) {
       if (state.flying) {
-        state.vel.y -= GRAVITY * dt;
+        state.vel.y -= THROW_GRAVITY * dt;
         state.pos.addScaledVector(state.vel, dt);
         ball.position.copy(state.pos);
         if (state.pos.y <= 0.1) {
           state.flying = false; ball.visible = false;
           state.smokeAt.copy(state.pos); state.smokeAt.y = 1.2;
           state.smokeLeft = SMOKE_SECONDS;
-          mesh.position.copy(state.smokeAt); mesh.visible = true;
+          cloud.position.copy(state.smokeAt); cloud.visible = true;
         }
       }
       if (state.smokeLeft > 0) {
         state.smokeLeft -= dt;
-        mesh.material.opacity = 0.32 * Math.min(1, state.smokeLeft / 2);
-        if (state.smokeLeft <= 0) mesh.visible = false;
+        cloud.material.opacity = 0.32 * Math.min(1, state.smokeLeft / 2);
+        if (state.smokeLeft <= 0) cloud.visible = false;
       }
     },
     // True when the segment a->b passes through the smoke cloud.
@@ -56,6 +57,6 @@ export function createGrenades(scene) {
       const dz = a.z + abz * t - state.smokeAt.z;
       return dx * dx + dy * dy + dz * dz < SMOKE_RADIUS * SMOKE_RADIUS;
     },
-    reset() { state.flying = false; state.smokeLeft = 0; mesh.visible = false; ball.visible = false; },
+    reset() { state.flying = false; state.smokeLeft = 0; cloud.visible = false; ball.visible = false; },
   };
 }

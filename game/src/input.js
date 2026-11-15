@@ -1,18 +1,18 @@
-// Keyboard and mouse, and the pointer lock that turns the mouse into look.
-// Plain browser APIs only. Edge detection: main.js calls takePressed()
-// each frame to catch single-press keys (reload, switch, grenade, buy)
-// exactly once.
+// Keyboard and mouse, plus the pointer lock that turns the mouse into
+// look. Plain browser APIs only. Edge detection: main.js calls
+// takePressed() once per frame to catch single-press keys (reload,
+// weapon switch, grenade, buy) exactly once.
 export function createInput(canvas, onLockChange) {
   const keys = new Set();
   const pressed = new Set();
   const state = { keys, locked: false, firing: false, aiming: false, lookX: 0, lookY: 0 };
-  function setKey(event, down) {
+  function onKey(event, down) {
     if (down && !keys.has(event.code)) pressed.add(event.code);
     if (down) keys.add(event.code); else keys.delete(event.code);
     if (event.code === 'Space') event.preventDefault();
   }
-  window.addEventListener('keydown', (event) => setKey(event, true));
-  window.addEventListener('keyup', (event) => setKey(event, false));
+  window.addEventListener('keydown', (event) => onKey(event, true));
+  window.addEventListener('keyup', (event) => onKey(event, false));
   window.addEventListener('blur', () => { keys.clear(); pressed.clear(); });
   window.addEventListener('mousemove', (event) => {
     if (!state.locked) return;

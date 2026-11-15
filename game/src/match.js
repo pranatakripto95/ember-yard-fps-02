@@ -1,8 +1,9 @@
-// The match, in one place: rounds, economy, the charge objective, score.
-// Vanguard (player + 2 bots) attack; Rustjackals (4 bots) defend. First to
-// 5 round wins takes the match (best of 9). A round ends on elimination,
-// on the charge detonating, on a defuse, or on the 100 s timer expiring
-// (defenders win when the charge was never planted).
+// The match, kept in one place: rounds, economy, the charge objective
+// and the score. Vanguard (the player plus two bots) attack; Rustjackals
+// (four bots) defend. First to five round wins takes the match (best of
+// nine). A round ends on elimination, on the charge detonating, on a
+// defuse, or on the 100 s timer running out — the defenders win the
+// round when the charge was never planted.
 import { SITES } from './world.js';
 
 export const ROUND_SECONDS = 100;
@@ -14,7 +15,7 @@ export const WIN_ROUNDS = 5;
 export const AWARD = { win: 300, loss: 150, kill: 100, plant: 300 };
 
 export function createMatch() {
-  const state = {
+  const s = {
     phase: 'buy', // 'buy' | 'live' | 'over'
     round: 1, winsV: 0, winsR: 0,
     timer: BUY_SECONDS, money: 800, kills: 0,
@@ -22,88 +23,88 @@ export function createMatch() {
     bombPos: null, detonateLeft: 0, roundWinner: null, roundReason: '',
     matchWinner: null, over: false, message: '',
   };
-  function startRound() {
-    state.phase = 'live'; state.timer = ROUND_SECONDS;
-    state.planted = false; state.plantSite = null; state.plantProgress = 0;
-    state.defuseProgress = 0; state.bombPos = null; state.detonateLeft = 0;
-    state.roundWinner = null; state.roundReason = '';
+  function beginRound() {
+    s.phase = 'live'; s.timer = ROUND_SECONDS;
+    s.planted = false; s.plantSite = null; s.plantProgress = 0;
+    s.defuseProgress = 0; s.bombPos = null; s.detonateLeft = 0;
+    s.roundWinner = null; s.roundReason = '';
   }
-  function endRound(winner, reason) {
-    if (state.phase === 'over') return;
-    state.phase = 'over'; state.roundWinner = winner; state.roundReason = reason;
-    state.timer = 5;
-    if (winner === 'V') { state.winsV += 1; state.money += AWARD.win; }
-    else { state.winsR += 1; state.money += AWARD.loss; }
-    state.message = winner === 'V'
-      ? `Vanguard take round ${state.round} — ${reason}`
-      : `Rustjackals take round ${state.round} — ${reason}`;
-    if (state.winsV >= WIN_ROUNDS || state.winsR >= WIN_ROUNDS) {
-      state.matchWinner = winner; state.over = true;
+  function finishRound(winner, reason) {
+    if (s.phase === 'over') return;
+    s.phase = 'over'; s.roundWinner = winner; s.roundReason = reason;
+    s.timer = 5;
+    if (winner === 'V') { s.winsV += 1; s.money += AWARD.win; }
+    else { s.winsR += 1; s.money += AWARD.loss; }
+    s.message = winner === 'V'
+      ? `Vanguard take round ${s.round} — ${reason}`
+      : `Rustjackals take round ${s.round} — ${reason}`;
+    if (s.winsV >= WIN_ROUNDS || s.winsR >= WIN_ROUNDS) {
+      s.matchWinner = winner; s.over = true;
     }
   }
   function nextRound() {
-    state.round += 1;
-    state.phase = 'buy'; state.timer = BUY_SECONDS;
-    state.planted = false; state.plantSite = null; state.plantProgress = 0;
-    state.defuseProgress = 0; state.bombPos = null; state.detonateLeft = 0;
-    state.roundWinner = null; state.roundReason = '';
+    s.round += 1;
+    s.phase = 'buy'; s.timer = BUY_SECONDS;
+    s.planted = false; s.plantSite = null; s.plantProgress = 0;
+    s.defuseProgress = 0; s.bombPos = null; s.detonateLeft = 0;
+    s.roundWinner = null; s.roundReason = '';
   }
   function step(dt, ctx) {
-    if (state.phase === 'buy') {
-      state.timer -= dt;
-      if (state.timer <= 0) startRound();
+    if (s.phase === 'buy') {
+      s.timer -= dt;
+      if (s.timer <= 0) beginRound();
       return;
     }
-    if (state.phase === 'over') {
-      state.timer -= dt;
-      if (state.timer <= 0) {
-        if (state.over) return; // match over: main.js shows the end overlay
+    if (s.phase === 'over') {
+      s.timer -= dt;
+      if (s.timer <= 0) {
+        if (s.over) return; // match over: main.js shows the end overlay
         nextRound();
         ctx.onNextRound?.();
       }
       return;
     }
     // live
-    state.timer -= dt;
+    s.timer -= dt;
     // Planting: the player holds E inside a site.
-    if (!state.planted) {
+    if (!s.planted) {
       if (ctx.planting && ctx.inSite) {
-        state.plantProgress += dt;
-        if (state.plantProgress >= PLANT_SECONDS) {
-          state.planted = true; state.plantSite = ctx.inSite;
+        s.plantProgress += dt;
+        if (s.plantProgress >= PLANT_SECONDS) {
+          s.planted = true; s.plantSite = ctx.inSite;
           const site = SITES[ctx.inSite];
-          state.bombPos = { x: site.x, z: site.z };
-          state.detonateLeft = DETONATE_SECONDS;
-          state.money += AWARD.plant;
-          state.message = `Charge planted at Site ${ctx.inSite} — ${DETONATE_SECONDS}s to detonation`;
+          s.bombPos = { x: site.x, z: site.z };
+          s.detonateLeft = DETONATE_SECONDS;
+          s.money += AWARD.plant;
+          s.message = `Charge planted at Site ${ctx.inSite} — ${DETONATE_SECONDS}s to detonation`;
         }
-      } else state.plantProgress = Math.max(0, state.plantProgress - dt * 2);
+      } else s.plantProgress = Math.max(0, s.plantProgress - dt * 2);
     } else {
-      state.detonateLeft -= dt;
+      s.detonateLeft -= dt;
       if (ctx.defuser) {
-        state.defuseProgress += dt;
-        if (state.defuseProgress >= DEFUSE_SECONDS) { endRound('R', 'charge defused'); return; }
-      } else state.defuseProgress = Math.max(0, state.defuseProgress - dt * 2);
-      if (state.detonateLeft <= 0) { endRound('V', 'charge detonated'); return; }
+        s.defuseProgress += dt;
+        if (s.defuseProgress >= DEFUSE_SECONDS) { finishRound('R', 'charge defused'); return; }
+      } else s.defuseProgress = Math.max(0, s.defuseProgress - dt * 2);
+      if (s.detonateLeft <= 0) { finishRound('V', 'charge detonated'); return; }
     }
-    // Elimination ends the round before a plant; after a plant both teams
-    // dead still ends in a detonation for the attackers.
-    if (!state.planted) {
-      if (ctx.aliveR === 0) { endRound('V', 'all Rustjackals eliminated'); return; }
-      if (ctx.aliveV === 0) { endRound('R', 'all Vanguard eliminated'); return; }
+    // Elimination ends the round before a plant; after a plant, both
+    // teams dead still ends in a detonation for the attackers.
+    if (!s.planted) {
+      if (ctx.aliveR === 0) { finishRound('V', 'all Rustjackals eliminated'); return; }
+      if (ctx.aliveV === 0) { finishRound('R', 'all Vanguard eliminated'); return; }
     } else if (ctx.aliveR === 0 && ctx.aliveV === 0) {
-      endRound('V', 'charge detonated'); return;
+      finishRound('V', 'charge detonated'); return;
     }
-    if (state.timer <= 0) {
-      if (state.planted) endRound('V', 'charge detonated');
-      else endRound('R', 'time expired — charge never planted');
+    if (s.timer <= 0) {
+      if (s.planted) finishRound('V', 'charge detonated');
+      else finishRound('R', 'time expired — charge never planted');
     }
   }
   function reset() {
-    state.round = 1; state.winsV = 0; state.winsR = 0; state.money = 800; state.kills = 0;
-    state.matchWinner = null; state.over = false; state.phase = 'buy'; state.timer = BUY_SECONDS;
-    state.planted = false; state.plantSite = null; state.plantProgress = 0; state.defuseProgress = 0;
-    state.bombPos = null; state.detonateLeft = 0; state.roundWinner = null; state.roundReason = '';
+    s.round = 1; s.winsV = 0; s.winsR = 0; s.money = 800; s.kills = 0;
+    s.matchWinner = null; s.over = false; s.phase = 'buy'; s.timer = BUY_SECONDS;
+    s.planted = false; s.plantSite = null; s.plantProgress = 0; s.defuseProgress = 0;
+    s.bombPos = null; s.detonateLeft = 0; s.roundWinner = null; s.roundReason = '';
   }
-  return { state, step, startRound, endRound, nextRound, reset };
+  return { state: s, step, startRound: beginRound, endRound: finishRound, nextRound, reset };
 }

@@ -1,9 +1,9 @@
-// Two hitscan guns, tuned to feel different. The rifle is automatic, 30
-// rounds, 34 body damage; the pistol is semi-auto, 12 rounds, 28 body
-// damage, faster to draw. main.js owns the ray and the damage; this module
-// owns magazines, reloads, spread and the view model. Spread grows with
-// movement and sustained fire (heat), and shrinks when still, crouched
-// or aiming — stopping to aim pays.
+// Two hitscan guns, tuned to feel different. The rifle is automatic,
+// 30 rounds, 34 body damage; the pistol is semi-automatic, 12 rounds,
+// 28 body damage, faster to draw. main.js owns the ray and the damage;
+// this module owns magazines, reloads, spread and the view model.
+// Spread grows with movement and sustained fire (heat), and shrinks
+// when still, crouched or aiming — stopping to aim pays.
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
 
@@ -20,13 +20,13 @@ export const BUY_ITEMS = [
 ];
 
 export function createWeapon(camera) {
-  const grip = new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.hairline), roughness: 0.7, metalness: 0.2 });
-  const bodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.ink), roughness: 0.5, metalness: 0.35 });
+  const darkMetal = new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.hairline), roughness: 0.7, metalness: 0.2 });
+  const paleMetal = new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.ink), roughness: 0.5, metalness: 0.35 });
   const model = new THREE.Group();
-  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.1, 0.42), bodyMat);
-  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.4), grip);
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.1, 0.42), paleMetal);
+  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.4), darkMetal);
   barrel.position.set(0, 0.025, -0.38);
-  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.08, 0.22), grip);
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.08, 0.22), darkMetal);
   stock.position.set(0, -0.02, 0.3);
   model.add(receiver, barrel, stock);
   model.position.set(0.24, -0.2, -0.42);
@@ -47,7 +47,7 @@ export function createWeapon(camera) {
     },
     cooldown: 0, reloadLeft: 0, flash: 0, kick: 0, heat: 0, smokes: 1,
   };
-  function def() { return WEAPONS[state.current]; }
+  function spec() { return WEAPONS[state.current]; }
   function step(dt) {
     state.cooldown = Math.max(0, state.cooldown - dt);
     state.flash = Math.max(0, state.flash - dt);
@@ -61,10 +61,10 @@ export function createWeapon(camera) {
     flashLight.intensity = state.flash > 0 ? 18 : 0;
     if (state.reloadLeft > 0) {
       state.reloadLeft = Math.max(0, state.reloadLeft - dt);
-      model.rotation.x = -0.55 * Math.min(1, (def().reload - state.reloadLeft) * 2);
+      model.rotation.x = -0.55 * Math.min(1, (spec().reload - state.reloadLeft) * 2);
       if (state.reloadLeft === 0) {
         const gun = state.guns[state.current];
-        const need = def().mag - gun.mag;
+        const need = spec().mag - gun.mag;
         const take = Math.min(need, gun.reserve);
         gun.mag += take; gun.reserve -= take;
       }
@@ -72,18 +72,18 @@ export function createWeapon(camera) {
   }
   return {
     state, step,
-    currentDef() { return def(); },
+    currentDef() { return spec(); },
     setAiming(v) { model.userData.aiming = v; },
     ready() { return state.guns[state.current].mag > 0 && state.cooldown === 0 && state.reloadLeft === 0; },
-    pullTrigger() { state.cooldown = def().gap; state.flash = 0.06; state.kick = 0.055; state.heat = Math.min(1, state.heat + 0.09); },
+    pullTrigger() { state.cooldown = spec().gap; state.flash = 0.06; state.kick = 0.055; state.heat = Math.min(1, state.heat + 0.09); },
     takeRound() { const g = state.guns[state.current]; if (g.mag <= 0) return false; g.mag -= 1; return true; },
     reload() {
       const g = state.guns[state.current];
-      if (state.reloadLeft > 0 || g.mag === def().mag || g.reserve === 0) return;
-      state.reloadLeft = def().reload;
+      if (state.reloadLeft > 0 || g.mag === spec().mag || g.reserve === 0) return;
+      state.reloadLeft = spec().reload;
     },
     spread(speed, crouching, aiming) {
-      const d = def();
+      const d = spec();
       let s = d.spreadStill + Math.min(1, speed / 5.2) * d.spreadMove + state.heat * 0.02;
       if (crouching) s *= 0.7;
       if (aiming) s *= 0.45;
