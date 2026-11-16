@@ -23,12 +23,16 @@
   #hud { position: fixed; inset: 0; pointer-events: none; }
   #damage-flash { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 120px 40px rgba(200, 40, 20, 0.55); opacity: 0; transition: opacity 120ms linear; }
   #damage-flash.on { opacity: 1; }
-  #crosshair { position: fixed; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); }
+  #crosshair { position: fixed; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); --gap: 3px; }
   #crosshair i { position: absolute; background: var(--ink); opacity: .85; }
-  #crosshair i:nth-child(1) { left: 10px; top: 0; width: 2px; height: 7px; }
-  #crosshair i:nth-child(2) { left: 10px; bottom: 0; width: 2px; height: 7px; }
-  #crosshair i:nth-child(3) { top: 10px; left: 0; height: 2px; width: 7px; }
-  #crosshair i:nth-child(4) { top: 10px; right: 0; height: 2px; width: 7px; }
+  #crosshair i:nth-child(1) { left: 10px; top: var(--gap); width: 2px; height: 7px; }
+  #crosshair i:nth-child(2) { left: 10px; bottom: var(--gap); width: 2px; height: 7px; }
+  #crosshair i:nth-child(3) { top: 10px; left: var(--gap); height: 2px; width: 7px; }
+  #crosshair i:nth-child(4) { top: 10px; right: var(--gap); height: 2px; width: 7px; }
+  #banner { position: fixed; left: 50%; top: 96px; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity 300ms linear; pointer-events: none; }
+  #banner.on { opacity: 1; }
+  #banner-title { font-size: 26px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }
+  #banner-sub { font-size: 14px; color: var(--accent); margin-top: 4px; }
   #hitmarker { position: fixed; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%, -50%) rotate(45deg); opacity: 0; transition: opacity 90ms linear; }
   #hitmarker.on { opacity: 1; }
   #hitmarker i { position: absolute; background: var(--accent); }
@@ -81,6 +85,7 @@
   <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
   <div id="topbar"><span id="round-label">ROUND 1</span><span id="timer">0:12</span><span id="score">V <b id="score-value">0 — 0</b> R</span><span id="money">$800</span><span id="alive">V 3 · R 4</span></div>
   <div id="objective">Plant the charge at Site A or B</div>
+  <div id="banner"><div id="banner-title"></div><div id="banner-sub"></div></div>
   <div id="health">HP 100</div>
   <div id="weapon-name">Ember Rifle</div>
   <div id="ammo"><span id="ammo-mag">30</span><span id="ammo-reserve">/ 90</span></div>

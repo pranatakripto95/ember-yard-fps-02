@@ -21,14 +21,19 @@ export const BUY_ITEMS = [
 
 export function createWeapon(camera) {
   const darkMetal = new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.hairline), roughness: 0.7, metalness: 0.2 });
-  const paleMetal = new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.ink), roughness: 0.5, metalness: 0.35 });
+  // Gunmetal receiver, not near-white: the old pale finish blew out to
+  // a beige plank under the dusk key light.
+  const paleMetal = new THREE.MeshStandardMaterial({ color: new THREE.Color('#565d66'), roughness: 0.55, metalness: 0.35 });
+  const accentMetal = new THREE.MeshStandardMaterial({ color: new THREE.Color(PALETTE.accent), roughness: 0.5, metalness: 0.2, emissive: new THREE.Color(PALETTE.accent), emissiveIntensity: 0.25 });
   const model = new THREE.Group();
   const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.1, 0.42), paleMetal);
   const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.4), darkMetal);
   barrel.position.set(0, 0.025, -0.38);
   const stock = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.08, 0.22), darkMetal);
   stock.position.set(0, -0.02, 0.3);
-  model.add(receiver, barrel, stock);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.012, 0.3), accentMetal);
+  stripe.position.set(0, 0.056, -0.02);
+  model.add(receiver, barrel, stock, stripe);
   model.position.set(0.24, -0.2, -0.42);
   camera.add(model);
   const flash = new THREE.Mesh(

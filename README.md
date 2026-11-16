@@ -29,7 +29,18 @@ Buy rifle/pistol ammo, armour (+50), smoke grenades and field kits.
 Hitscan rifle (30 rnd, automatic, 34 body damage) and pistol (12 rnd,
 semi-auto, 28 body damage), 2.5× headshots against torso/head hitboxes,
 recoil, heat and spread that punish firing on the move. Crouching and
-aiming tighten spread; stopping to aim pays.
+aiming tighten spread; stopping to aim pays. The crosshair opens as
+spread grows, impact sparks mark where shots land, and every shot,
+hit, kill, reload, plant and round result has a synthesised WebAudio
+sound — no audio files, no network.
+
+## The yard at dusk
+
+A gradient sky dome, a low sun over the west wall and a rooftop skyline
+replace the flat black sky, and big A / B markers float above the two
+sites so the objective reads from spawn. An eliminated player
+spectates a living Vanguard teammate, and a banner names each round's
+winner in play.
 
 ## Bots
 
@@ -43,12 +54,15 @@ rounds, so with an average player Vanguard is competitive.
 
 - `game/index.html` — page + HUD
 - `game/src/main.js` — boot, fixed 60 Hz sim loop, shooting, screenshots
-- `game/src/world.js` — the yard, colliders, dusk lighting
 - `game/src/player.js` — movement, crouch, health/armour
 - `game/src/weapon.js` — rifle/pistol, spread, recoil, buy items
 - `game/src/bots.js` — bot AI, sight, bursts, routes
 - `game/src/match.js` — rounds, economy, plant/defuse, score
 - `game/src/hud.js`, `input.js`, `effects.js`, `grenade.js`, `palette.js`
+- `game/src/audio.js` — synthesised WebAudio sounds (shots, hits,
+  reloads, plants, round stings); no audio files
+- `game/src/world.js` — the yard, colliders, dusk lighting, sky dome,
+  sun, skyline and site markers
 
 three.js 0.187.0 is vendored under `game/vendor/three/`.
 Screenshots in `screenshots/` are real renders of this game, taken in a

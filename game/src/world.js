@@ -118,5 +118,62 @@ export function createWorld(scene) {
   const fill = new THREE.DirectionalLight(new THREE.Color(PALETTE.muted), 0.9);
   fill.position.set(10, 9, 12);
   scene.add(fill);
+
+  // Dusk sky: a gradient dome, a low sun and a distant skyline, so the
+  // top of the frame is a sunset instead of flat black. All procedural
+  // geometry and canvas textures — no image files, no network.
+  const skyGeo = new THREE.SphereGeometry(110, 24, 16);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: {
+      horizon: { value: new THREE.Color('#96602f') },
+      mid: { value: new THREE.Color('#4a3a4d') },
+      zenith: { value: new THREE.Color('#20263e') },
+    },
+    vertexShader: 'varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'varying vec3 vDir; uniform vec3 horizon; uniform vec3 mid; uniform vec3 zenith; void main() { float h = clamp(vDir.y, 0.0, 1.0); vec3 c = h < 0.25 ? mix(horizon, mid, h / 0.25) : mix(mid, zenith, (h - 0.25) / 0.75); gl_FragColor = vec4(c, 1.0); }',
+  });
+  const skyDome = new THREE.Mesh(skyGeo, skyMat);
+  scene.add(skyDome);
+  // The sun: a radial-gradient sprite low over the west wall.
+  const sunCanvas = document.createElement('canvas');
+  sunCanvas.width = 128; sunCanvas.height = 128;
+  const sunCtx = sunCanvas.getContext('2d');
+  const glow = sunCtx.createRadialGradient(64, 64, 4, 64, 64, 64);
+  glow.addColorStop(0, 'rgba(255, 190, 110, 1)');
+  glow.addColorStop(0.35, 'rgba(240, 140, 50, 0.85)');
+  glow.addColorStop(1, 'rgba(240, 120, 40, 0)');
+  sunCtx.fillStyle = glow; sunCtx.fillRect(0, 0, 128, 128);
+  const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(sunCanvas), transparent: true, depthWrite: false, fog: false }));
+  sun.position.set(-70, 14, -55); sun.scale.set(34, 34, 1);
+  scene.add(sun);
+  // Distant rooftops silhouetted against the sky, outside the walls.
+  const skylineMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#161a21'), fog: false });
+  const skyline = [[-26, 9, -24, 10, 12], [-12, 13, -26, 8, 9], [2, 8, -25, 12, 10], [16, 12, -24, 9, 11], [28, 7, -22, 8, 13], [-30, 11, 4, 9, 10], [30, 9, 6, 10, 12], [-28, 8, 14, 8, 9]];
+  for (const [x, h, z, w, d] of skyline) {
+    const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), skylineMat);
+    block.position.set(x, h / 2, z);
+    group.add(block);
+  }
+  // Site letters: big A / B markers floating above the sites so the
+  // objective reads from spawn and in every screenshot.
+  function siteMarker(letter, x, z) {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = 'rgba(20, 22, 26, 0.85)';
+    g.beginPath(); g.arc(128, 128, 112, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#f0a830'; g.lineWidth = 10;
+    g.beginPath(); g.arc(128, 128, 112, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#f0a830'; g.font = 'bold 150px system-ui, sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(letter, 128, 136);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    sprite.position.set(x, 5.6, z); sprite.scale.set(3.2, 3.2, 1);
+    scene.add(sprite);
+    return sprite;
+  }
+  siteMarker('A', SITES.A.x, SITES.A.z);
+  siteMarker('B', SITES.B.x, SITES.B.z);
   return { colliders, shootables, group, pads };
 }

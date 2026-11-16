@@ -21,7 +21,9 @@ export function createHud() {
   const feed = $('killfeed'), buy = $('buy'), buyList = $('buy-list'), hitmarker = $('hitmarker');
   const damageFlash = $('damage-flash');
   const weaponEl = $('weapon-name');
-  let hitTimer = 0, damageTimer = 0, last = {};
+  const banner = $('banner'), bannerTitle = $('banner-title'), bannerSub = $('banner-sub');
+  const crosshair = $('crosshair');
+  let hitTimer = 0, damageTimer = 0, bannerTimer = 0, last = {};
   function writeText(el, key, value) { if (last[key] !== value) { last[key] = value; el.textContent = value; } }
   return {
     setAmmo(mag, reserve, name) {
@@ -40,6 +42,23 @@ export function createHud() {
     setAlive(v, r) { writeText(aliveEl, 'alive', `V ${v} · R ${r}`); },
     setObjective(text) { writeText(objEl, 'obj', text); },
     setRound(round) { writeText($('round-label'), 'round', `ROUND ${round}`); },
+    // The round-end banner: the result line stays on screen while the
+    // next round is staged, so the outcome reads without opening the
+    // pause overlay.
+    showBanner(title, sub) {
+      bannerTitle.textContent = title;
+      bannerSub.textContent = sub || '';
+      banner.classList.add('on');
+      clearTimeout(bannerTimer);
+      bannerTimer = setTimeout(() => banner.classList.remove('on'), 4500);
+    },
+    hideBanner() { banner.classList.remove('on'); clearTimeout(bannerTimer); },
+    // The crosshair opens up as spread grows: firing on the move, or a
+    // hot barrel, is visible before the shots miss.
+    setCrosshair(spread) {
+      const gap = Math.round(Math.min(11, 3 + spread * 260));
+      crosshair.style.setProperty('--gap', `${gap}px`);
+    },
     setProgress(label, frac) {
       if (!label) { barWrap.hidden = true; return; }
       barWrap.hidden = false;

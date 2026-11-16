@@ -14,7 +14,11 @@
 // and head hitboxes, headshots dealing 2.5x, with recoil, heat and
 // spread that punish firing while moving. Bots patrol waypoint lanes,
 // hold the two sites, investigate gunfire, and walk to a planted charge
-// to defuse it. Bot behaviour is seeded fresh every match.
+// to defuse it. Bot behaviour is seeded fresh every match. Gunfire,
+// hits, kills, reloads, plants and round results all have synthesised
+// WebAudio sounds (audio.js, no audio files); a round-end banner names
+// the winner in play; an eliminated player spectates a living teammate;
+// and the crosshair visibly opens as spread grows.
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
 import { createWorld, SITES } from './world.js';
@@ -24,6 +28,7 @@ import { createWeapon, BUY_ITEMS } from './weapon.js';
 import { createBots } from './bots.js';
 import { createGrenades } from './grenade.js';
 import { createEffects } from './effects.js';
+import { createAudio } from './audio.js';
 import { createMatch, PLANT_SECONDS, DEFUSE_SECONDS, AWARD } from './match.js';
 import { createHud } from './hud.js';
 
@@ -67,6 +72,7 @@ const hud = createHud();
 const player = createPlayer(world.colliders, { x: 0, z: 11 });
 const weapon = createWeapon(camera);
 const effects = createEffects(scene);
+const audio = createAudio();
 const grenades = createGrenades(scene);
 const me = player.state;
 
@@ -105,6 +111,7 @@ const bots = createBots(scene, world, {
   },
   onPlayerDamaged(amount, bot) {
     const died = player.damage(amount);
+    audio.hurt();
     hud.setHealth(me.health, me.armor);
     hud.flashDamage();
     if (died) hud.killFeed(`${bot.name} eliminated you`);
@@ -149,6 +156,16 @@ function startNextRound() {
   const a = weapon.ammo(); hud.setAmmo(a.mag, a.reserve, weapon.currentDef().name);
 }
 function placeCamera() {
+  // Eliminated mid-round: spectate the nearest living Vanguard bot
+  // instead of staring at the floor until the round ends.
+  if (!me.alive && match.state.phase === 'live') {
+    const ally = bots.bots.find((b) => b.alive && b.team === 'V');
+    if (ally) {
+      camera.position.set(ally.pos.x, ally.pos.y + 1.6, ally.pos.z);
+      camera.rotation.set(0, ally.yaw, 0, 'YXZ');
+      return;
+    }
+  }
   camera.position.set(me.position.x, me.position.y + me.eye, me.position.z);
   camera.rotation.set(me.pitch, me.yaw, 0, 'YXZ');
 }
@@ -175,18 +192,24 @@ function fire(spread) {
   const hit = ray.intersectObjects(targets, false)[0];
   const end = hit ? hit.point : scratch.copy(camera.position).addScaledVector(forward, 60);
   effects.tracer(origin, end);
-  if (hit && hit.object.userData.bot) {
-    const bot = hit.object.userData.bot;
-    const headshot = hit.object.userData.part === 'head';
-    const damage = weapon.currentDef().damage * (headshot ? weapon.currentDef().headMult : 1);
-    const killed = bots.damage(bot, damage, { name: 'You' });
-    hud.hitMarker(killed, shotMode ? 4000 : 90);
-    if (killed) {
-      match.state.money += AWARD.kill; match.state.kills += 1;
-      hud.setMoney(match.state.money);
-      hud.killFeed(`You eliminated ${bot.name}${headshot ? ' (headshot)' : ''}`);
+  if (hit) {
+    effects.impact(hit.point);
+    if (hit.object.userData.bot) {
+      const bot = hit.object.userData.bot;
+      const headshot = hit.object.userData.part === 'head';
+      const damage = weapon.currentDef().damage * (headshot ? weapon.currentDef().headMult : 1);
+      const killed = bots.damage(bot, damage, { name: 'You' });
+      hud.hitMarker(killed, shotMode ? 4000 : 90);
+      audio.hit();
+      if (killed) {
+        audio.kill();
+        match.state.money += AWARD.kill; match.state.kills += 1;
+        hud.setMoney(match.state.money);
+        hud.killFeed(`You eliminated ${bot.name}${headshot ? ' (headshot)' : ''}`);
+      }
     }
   }
+  audio.shot(weapon.currentDef().auto);
   weapon.pullTrigger();
   player.recoil(0.009 + rng() * 0.004, (rng() * 2 - 1) * 0.004);
   bots.alert(me.position, 18);
@@ -206,6 +229,7 @@ function onLock(locked) {
 }
 hud.onPlay(() => {
   if (shotMode) return;
+  audio.unlock();
   if (match.state.over) {
     match.reset();
     botSeed = Date.now() % 100000; // a replayed match gets fresh bot behaviour
@@ -230,7 +254,11 @@ function simulate(dt) {
   const pressed = input.takePressed();
   me.aiming = input.state.aiming && me.alive;
   weapon.setAiming(me.aiming);
-  if (pressed.has('KeyR')) weapon.reload();
+  if (pressed.has('KeyR')) {
+    const before = weapon.ammo();
+    if (before.mag < weapon.currentDef().mag && before.reserve > 0) audio.reload();
+    weapon.reload();
+  }
   if (pressed.has('Digit1')) { if (weapon.switchTo('rifle')) { const a = weapon.ammo(); hud.setAmmo(a.mag, a.reserve, weapon.currentDef().name); } }
   if (pressed.has('Digit2')) { if (weapon.switchTo('pistol')) { const a = weapon.ammo(); hud.setAmmo(a.mag, a.reserve, weapon.currentDef().name); } }
   if (pressed.has('KeyG') && weapon.state.smokes > 0 && match.state.phase === 'live') {
@@ -253,6 +281,18 @@ function simulate(dt) {
     aliveV: vanguardAlive(), aliveR: rustjackalAlive(), playerAlive: me.alive,
     inSite: site, planting: keys.has('KeyE') && me.alive, defuser,
     onNextRound: startNextRound,
+    onPlant(siteKey) {
+      audio.planted();
+      hud.showBanner(`Charge planted at Site ${siteKey}`, 'Hold the site — 35s to detonation');
+    },
+    onRoundEnd(winner, reason) {
+      hud.showBanner(
+        winner === 'V' ? `Vanguard take round ${match.state.round}` : `Rustjackals take round ${match.state.round}`,
+        reason,
+      );
+      if (reason === 'charge detonated') audio.boom();
+      if (winner === 'V') audio.roundWin(); else audio.roundLose();
+    },
   });
   if (match.state.planted && match.state.bombPos) {
     chargeMesh.visible = true;
@@ -266,7 +306,11 @@ function simulate(dt) {
   hud.setMoney(match.state.money);
   hud.setAlive(vanguardAlive(), rustjackalAlive());
   hud.setRound(match.state.round);
-  hud.setObjective(match.state.planted
+  hud.setCrosshair(weapon.spread(player.groundSpeed(), me.crouching, me.aiming));
+  if (!me.alive && match.state.phase === 'live') {
+    const ally = bots.bots.find((b) => b.alive && b.team === 'V');
+    hud.setObjective(ally ? `Eliminated — spectating ${ally.name}` : 'Eliminated — waiting for the round to end');
+  } else hud.setObjective(match.state.planted
     ? `Charge planted at Site ${match.state.plantSite} — ${Math.ceil(match.state.detonateLeft)}s`
     : match.state.phase === 'buy' ? `Buy phase — round ${match.state.round} starts soon (B to buy)`
     : site ? `Hold E to plant at Site ${site}` : 'Plant the charge at Site A or B');
@@ -287,6 +331,9 @@ function tick(now) {
     if (wantFire && weapon.ready()) {
       fire(shotMode ? 0 : weapon.spread(player.groundSpeed(), me.crouching, me.aiming));
       tick._fired = true;
+    } else if (wantFire && weapon.ammo().mag === 0 && now - (tick._dryAt || 0) > 300) {
+      // Empty magazine: a dry click, at most once per 300 ms.
+      tick._dryAt = now; audio.dry();
     }
     if (!input.state.firing) tick._fired = false;
     leftover += dt;

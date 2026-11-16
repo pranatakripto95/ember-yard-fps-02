@@ -41,8 +41,7 @@ export function createMatch() {
     if (s.winsV >= WIN_ROUNDS || s.winsR >= WIN_ROUNDS) {
       s.matchWinner = winner; s.over = true;
     }
-  }
-  function nextRound() {
+  }  function nextRound() {
     s.round += 1;
     s.phase = 'buy'; s.timer = BUY_SECONDS;
     s.planted = false; s.plantSite = null; s.plantProgress = 0;
@@ -66,6 +65,7 @@ export function createMatch() {
     }
     // live
     s.timer -= dt;
+    const wasLive = s.phase === 'live';
     // Planting: the player holds E inside a site.
     if (!s.planted) {
       if (ctx.planting && ctx.inSite) {
@@ -77,6 +77,7 @@ export function createMatch() {
           s.detonateLeft = DETONATE_SECONDS;
           s.money += AWARD.plant;
           s.message = `Charge planted at Site ${ctx.inSite} — ${DETONATE_SECONDS}s to detonation`;
+          ctx.onPlant?.(ctx.inSite);
         }
       } else s.plantProgress = Math.max(0, s.plantProgress - dt * 2);
     } else {
@@ -99,6 +100,9 @@ export function createMatch() {
       if (s.planted) finishRound('V', 'charge detonated');
       else finishRound('R', 'time expired — charge never planted');
     }
+    // The round just ended: tell the caller once, with the reason, so
+    // it can show the banner and play the round sting.
+    if (wasLive && s.phase === 'over') ctx.onRoundEnd?.(s.roundWinner, s.roundReason);
   }
   function reset() {
     s.round = 1; s.winsV = 0; s.winsR = 0; s.money = 800; s.kills = 0;
